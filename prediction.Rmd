@@ -1,0 +1,51 @@
+---
+title: "Prediction Assignment"
+author: "Lucas Antelo"
+date: "31 Mai 2016"
+output: html_document
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+```
+
+## Executive Summary
+
+
+## Data retrieval and processing
+
+```{r cars, cache=TRUE, results='hide'}
+urlTrainingData <- "https://d396qusza40orc.cloudfront.net/predmachlearn/pml-training.csv"
+urlTestingData <- "https://d396qusza40orc.cloudfront.net/predmachlearn/pml-testing.csv"
+date_downloaded <- date()
+download.file(urlTrainingData, destfile = "training.csv")
+download.file(urlTestingData, destfile = "testing.csv")
+training <- read.csv("training.csv",stringsAsFactors = FALSE)
+testing <- read.csv("testing.csv", stringsAsFactors = FALSE)
+rm("urlTrainingData", "urlTestingData") #remove variables to free memory space
+```
+
+## Exploratory Data Analysis
+
+You can also embed plots, for example:
+
+```{r pressure, echo=FALSE}
+dim(training)
+summary(training)
+
+completness <- sapply(training, complete.cases) #T/F for each element
+colCompleteness <- apply(completness,2,sum) #sum of the logical values 1/0 columnwise
+
+length(which(colCompleteness < max(colCompleteness))) 
+#67 columns are less than 19622 and thus dataset will be reduced to complete cases
+
+trainingSubset <- training[complete.cases(training),]#dim 406 rows and 60 columns
+trainingClean <- cbind(trainingSubset[,8:13], trainingSubset[,18:24], trainingSubset[,37:48], trainingSubset[,60:71], trainingSubset[, 81:88])
+trainingClean <- cbind(trainingClean, trainingSubset[,99:100], trainingSubset[,113:126], trainingSubset[,137:139], trainingSubset[,151:160])# dim 406 to 74
+#get rid of the unnecessary columns
+trainNumeric <- sapply(training[,2:dim(training)[2]], as.numeric) #especially strings are transformed into NAs
+training <- cbind(training[,1], trainNumeric)
+
+```
+The training dataset contains variables with a devastating number of non available numbers or incompleteness. The number of complete cases diminishes to 406, which represents 2% of the raw dataset. The question remains, if I use all variables for my prediction model, especially those, with many NA values.
+
