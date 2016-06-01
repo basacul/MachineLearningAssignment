@@ -10,42 +10,121 @@ knitr::opts_chunk$set(echo = TRUE)
 ```
 
 ## Executive Summary
+The data set.
 
+## Getting The Data
 
-## Data retrieval and processing
+The data set for this assignment consists of the weight lifting exercise dataset provided by Velloso, E and co (1). It consists of 5 different groups doing the weight lifting exercises under 5 different conditions. Group A under correct conditions and the other four with mistakes of different degree all under the surveillance of an experienced observer.
 
-```{r cars, cache=TRUE, results='hide'}
+| A | exactly according to the specification |
+| B | throwing the elbows to the front |
+| C | lifting the dumbbell only halfway |
+| D | lowering the dumbbell only halfway |
+| E | throwing the hips to the front |
+
+We download the data and read them as training and validation set from the .csv file. As the training set has many observations, we can construct from the training set 2 subsets for training and testing purposes and finally to blend and construct an ensemble learning model.
+
+```{r getting, cache=TRUE, results='hide'}
 urlTrainingData <- "https://d396qusza40orc.cloudfront.net/predmachlearn/pml-training.csv"
 urlTestingData <- "https://d396qusza40orc.cloudfront.net/predmachlearn/pml-testing.csv"
 date_downloaded <- date()
 download.file(urlTrainingData, destfile = "training.csv")
 download.file(urlTestingData, destfile = "testing.csv")
-training <- read.csv("training.csv",stringsAsFactors = FALSE)
-testing <- read.csv("testing.csv", stringsAsFactors = FALSE)
+training <- read.csv("training.csv",strip.white = TRUE, na.strings = c("#DIV/0!", "NA"))
+dim(training)
+validation <- read.csv("testing.csv", strip.white=TRUE, na.strings = c("#DIV/0!", "NA"))
 rm("urlTrainingData", "urlTestingData") #remove variables to free memory space
 ```
 
-## Exploratory Data Analysis
+## Cleaning The Data
 
-You can also embed plots, for example:
+The data set contains many variables and observations which will be reduced to the asked data from accelerometers on the belt, forearm, arm, and dumbell of 6 participants as well as the outcome classe. Furthermore I especially took further variables for the belt, forearm and dumbbell, as the majority of the movement will be in the forearm, the hip in class E and the dumbbell. In this way we have 29 variables and the outcome classe.
 
-```{r pressure, echo=FALSE}
-dim(training)
+```{r cleaning, echo=TRUE, results='hide'}
 summary(training)
 
-completness <- sapply(training, complete.cases) #T/F for each element
-colCompleteness <- apply(completness,2,sum) #sum of the logical values 1/0 columnwise
+#looked at the dataset and wrote down all the variables that are necessary for this assignment. 
+asked <- c("classe", "roll_belt","pitch_belt", "yaw_belt" ,"accel_belt_x","accel_belt_y", "accel_belt_z", "magnet_belt_x", "magnet_belt_y", "magnet_belt_z", "accel_arm_x", "accel_arm_y", "accel_arm_z", "roll_forearm", "pitch_forearm", "yaw_forearm" ,"accel_forearm_x", "accel_forearm_y", "accel_forearm_z", "magnet_forearm_x", "magnet_forearm_y","magnet_forearm_z", "roll_dumbbell", "pitch_dumbbell" ,"accel_dumbbell_x", "accel_dumbbell_y", "accel_dumbbell_z", "magnet_dumbbell_x", "magnet_dumbbell_y", "magnet_dumbbell_z")
 
-length(which(colCompleteness < max(colCompleteness))) 
-#67 columns are less than 19622 and thus dataset will be reduced to complete cases
+training <- training[,asked]
 
-trainingSubset <- training[complete.cases(training),]#dim 406 rows and 60 columns
-trainingClean <- cbind(trainingSubset[,8:13], trainingSubset[,18:24], trainingSubset[,37:48], trainingSubset[,60:71], trainingSubset[, 81:88])
-trainingClean <- cbind(trainingClean, trainingSubset[,99:100], trainingSubset[,113:126], trainingSubset[,137:139], trainingSubset[,151:160])# dim 406 to 74
-#get rid of the unnecessary columns
-trainNumeric <- sapply(training[,2:dim(training)[2]], as.numeric) #especially strings are transformed into NAs
-training <- cbind(training[,1], trainNumeric)
-
+sum(!complete.cases(training)) #0, thus only complete cases
+dim(training) #[1] 19622    30
 ```
-The training dataset contains variables with a devastating number of non available numbers or incompleteness. The number of complete cases diminishes to 406, which represents 2% of the raw dataset. The question remains, if I use all variables for my prediction model, especially those, with many NA values.
+Now we have a much smaller number of variables (from 160 to 30) which will be used to construct our prediction model. First I will construct three different standalone models:
+1. Random Forest model
+2. Linear Discriminant model
+3. Boosting model
 
+The cross validation will be done with the subset trainSet from training with confusionMatrix, from which I get the accuracy values for each model. Then I will construct a model as a standalone or in combination of models.
+
+
+## Prediction Model
+
+From the original training set I will construct two subsets with the help of the caret package, One subset will be used for training purposes. The second for testing.
+
+```{r subsetsForTraining, results='hide', cache = TRUE, warning=FALSE}
+set.seed(12121)#in order to be reproducible
+library(caret)
+library(randomForest)
+
+inTrain <- createDataPartition(y = training$classe, p = 0.7, list = FALSE)
+trainSet <- training[inTrain,]
+testSet <- training[-inTrain,]
+```
+
+
+###1. Random Forest Model
+```{r randomForest, cache=TRUE, warning=FALSE}
+setting <- trainControl(allowParallel=T, method="cv", number=4)#to work faster, but still very slow :-(
+
+modRF <- train(classe ~ ., data = trainSet, method = "rf", trainControl=setting)
+
+predictionsRF <- predict(modRF, newdata = testSet)
+
+confusionMatrix(predictions, testSet$classe) #Accuracy 0.9905 [0.9877, 0.9928]
+table(predictions, testSet$classe)
+varImp(modRF)
+```
+This model provides a very good accuracy value, which can almost be used alone.
+
+
+###2. Linear Discriminant Model
+```{r linearDiscriminant, cache=TRUE, warning=FALSE}
+library(MASS)
+modLDA <- train(classe ~ ., data = trainSet, method = "lda")
+
+predictionsLDA <- predict(modLDA, newdata = testSet)
+
+confusionMatrix(predictions, testSet$classe) #Accuracy 0.6545 [0.6422, 0.6667]
+table(predictions, testSet$classe)
+```
+The accuracy for this model is much lower compared to the random forest model, such that it could only be helpful in combination with the first model.
+
+
+###3. Boosting Model
+```{r boosting, cache = TRUE, warning = FALSE}
+library(plyr)
+library(survival)
+library(splines)
+library(parallel)
+modB <- train(classe ~ ., data = trainSet, method = "gbm", verbose = FALSE)
+
+predictionsB <- predict(modB, newdata = testSet)
+
+confusionMatrix(predictions, testSet$classe)
+table(predictions, testSet$classe)
+```
+With an accuracy of 0.9568 and a 95% confidence interval of (0.9513, 0.9619) it is pretty good, but not as good as random forest. 
+
+
+##Validation
+
+```{r validation, cache = TRUE, warning=FALSE}
+predictionsV <- predict(modRF, validation)#doesn't work appropriately
+```
+
+
+
+(1) Velloso, E.; Bulling, A.; Gellersen, H.; Ugulino, W.; Fuks, H. Qualitative Activity Recognition of Weight Lifting Exercises. Proceedings of 4th International Conference in Cooperation with SIGCHI (Augmented Human '13) . Stuttgart, Germany: ACM SIGCHI, 2013.
+Read more: http://groupware.les.inf.puc-rio.br/har#ixzz4AKmYoNy4
