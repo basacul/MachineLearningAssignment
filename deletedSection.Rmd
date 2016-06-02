@@ -1,6 +1,4 @@
-###5. Combination Of Predictors
-Our final model will consist on a combination of a boosting and random forest model. The accuracy will be validated with the validation set.
-```{r finalModel, cache = TRUE, message = FALSE, warning = FALSE}
+```{r combinedModel, cache = TRUE, message = FALSE, warning = FALSE}
 library(mgcv)
 library(nlme)
 
@@ -17,18 +15,18 @@ predictionsC <- predict(modC, testSet)
 confusionMatrix(predictionsC, testSet$classe)
 
 
-# predictionsC_RF <- predict(modRF, validation)
-# predictionsC_B <- predict(modB, validation)
-# predCDF <- data.frame(rf = predictionsC_RF, b = predictionsC_B)
-# 
-# dim(predCDF)
-# 
-# predictionsC <- predict(modC, predCDF) #something's wrong here!
-# 
-# 
-# length(predictionsC) ## [1] 4118
-# length(predictionsC_RF) ## [1] 5885
-# length(predictionsC_B) ## [1] 5885
+predictionsC_RF <- predict(modRF, validation)
+predictionsC_B <- predict(modB, validation)
+predCDF <- data.frame(rf = predictionsC_RF, b = predictionsC_B)
+
+dim(predCDF)
+
+predictionsC <- predict(modC, predCDF) #something's wrong here!
+
+
+length(predictionsC) ## [1] 4118
+length(predictionsC_RF) ## [1] 5885
+length(predictionsC_B) ## [1] 5885
 
 # confusionMatrix(predictionsC, validation$classe)
 ```

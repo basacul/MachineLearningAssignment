@@ -33,7 +33,7 @@ download.file(urlTrainingData, destfile = "training.csv")
 download.file(urlTestingData, destfile = "testing.csv")
 training <- read.csv("training.csv",strip.white = TRUE, na.strings = c("#DIV/0!", "NA"))
 dim(training) #[1] 19622 160
-quizSet <- read.csv("testing.csv", strip.white=TRUE, na.strings = c("#DIV/0!", "NA")) #Course Project Prediction Quiz
+quizSet <- read.csv("testing.csv", strip.white=TRUE, na.strings = c("#DIV/0!", "NA")) #Prediction Quiz
 ```
 
 ## Cleaning The Data
