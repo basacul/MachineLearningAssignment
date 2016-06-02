@@ -10,20 +10,19 @@ knitr::opts_chunk$set(echo = TRUE)
 ```
 
 ## Executive Summary
-The data set.
+In this project, we use data from accelerometers on the belt, forearm, arm, and dumbell of 6 participants, that were asked to perform barbell lifts correctly and incorrectly in 5 different ways. The descriptioin of the experiment can be found at 'http://groupware.les.inf.puc-rio.br/har' under the section 'Weight Lifting Exercise Dataset'. The data set was provided by Velloso, E and co (1).
+
 
 ## Getting The Data
+6 participants were asked to perform barbell lifts under 5 different conditions, which are classified as groups from A to E, all under the surveillance of an experienced observer.
 
-The data set for this assignment consists of the weight lifting exercise dataset provided by Velloso, E and co (1). It consists of 5 different groups doing the weight lifting exercises under 5 different conditions. Group A under correct conditions and the other four with mistakes of different degree all under the surveillance of an experienced observer.
+ A : exactly according to the specification (correctly)
+ B : throwing the elbows to the front (incorrectly)
+ C : lifting the dumbbell only halfway (incorrectly)
+ D : lowering the dumbbell only halfway (incorrectly)
+ E : throwing the hips to the front (incorrectly)
 
-| A | exactly according to the specification |
-| B | throwing the elbows to the front |
-| C | lifting the dumbbell only halfway |
-| D | lowering the dumbbell only halfway |
-| E | throwing the hips to the front |
-
-We download the data and read them as training and validation set from the .csv file. As the training set has many observations, we can construct from the training set 2 subsets for training and testing purposes and finally to blend and construct an ensemble learning model.
-
+Two data sets are downloaded from a specific source consisting in a training set and validation set.
 ```{r getting, cache=TRUE, results='hide'}
 urlTrainingData <- "https://d396qusza40orc.cloudfront.net/predmachlearn/pml-training.csv"
 urlTestingData <- "https://d396qusza40orc.cloudfront.net/predmachlearn/pml-testing.csv"
@@ -31,14 +30,12 @@ date_downloaded <- date()
 download.file(urlTrainingData, destfile = "training.csv")
 download.file(urlTestingData, destfile = "testing.csv")
 training <- read.csv("training.csv",strip.white = TRUE, na.strings = c("#DIV/0!", "NA"))
-dim(training)
-validation <- read.csv("testing.csv", strip.white=TRUE, na.strings = c("#DIV/0!", "NA"))
-rm("urlTrainingData", "urlTestingData") #remove variables to free memory space
+dim(training) #[1] 19622 160
+quizSet <- read.csv("testing.csv", strip.white=TRUE, na.strings = c("#DIV/0!", "NA")) #Course Project Prediction Quiz
 ```
 
 ## Cleaning The Data
-
-The data set contains many variables and observations which will be reduced to the asked data from accelerometers on the belt, forearm, arm, and dumbell of 6 participants as well as the outcome classe. Furthermore I especially took further variables for the belt, forearm and dumbbell, as the majority of the movement will be in the forearm, the hip in class E and the dumbbell. In this way we have 29 variables and the outcome classe.
+The number of variables in the training set will be reduced, such that only variables from accelerometers on the belt, forearm, arm, and dumbell are retained and used to build our prediction models. Morevover further variables are retained, that could be significant in predicting the correct outcome, named as 'classe' in the data set representing one of the five groups (A - E). Finally, from 160 variables, 29 predictors and 1 outcome are used to build our models.
 
 ```{r cleaning, echo=TRUE, results='hide'}
 summary(training)
@@ -51,77 +48,130 @@ training <- training[,asked]
 sum(!complete.cases(training)) #0, thus only complete cases
 dim(training) #[1] 19622    30
 ```
-Now we have a much smaller number of variables (from 160 to 30) which will be used to construct our prediction model. First I will construct three different standalone models:
-1. Random Forest model
-2. Linear Discriminant model
-3. Boosting model
 
-The cross validation will be done with the subset trainSet from training with confusionMatrix, from which I get the accuracy values for each model. Then I will construct a model as a standalone or in combination of models.
+With the cleaned data set we will build five different models.
+
+1. Random Forest model  
+2. Linear Discriminant model  
+3. Boosting model  
+4. Predictive Tree model  
+5. Combination Of Predictors
+
+The construction of the models will be done with the caret package and the appropriate methods. After building the first four models, the accuracy and results will be measured with the method confusionMatrix() and its results will decide the final model. The final model will be tested using a validation subset. Furthermore the RMSE will be used to compare the final model with its consisting models.
 
 
 ## Prediction Model
+The number of observations in the original training data set allows us to construct a training subset, a test subset and a validation subset. The training subset will be used to train the first four models, which will be tested with the test subset. The final model will be trained with the test set and validated with the validation subset. The in sample error will always be lower than the out sample error, such that these models are expected to perform worse on new samples. The expected drop in accuracy (1 - out sample error) wll be mentioned for each model. An accuracy of 20% shows that the would be as good as guessing by chance.
 
-From the original training set I will construct two subsets with the help of the caret package, One subset will be used for training purposes. The second for testing.
-
-```{r subsetsForTraining, results='hide', cache = TRUE, warning=FALSE}
+```{r subsetsForTraining, results='hide',cache = TRUE, message=FALSE, warning=FALSE}
 set.seed(12121)#in order to be reproducible
+
 library(caret)
 library(randomForest)
 
-inTrain <- createDataPartition(y = training$classe, p = 0.7, list = FALSE)
-trainSet <- training[inTrain,]
-testSet <- training[-inTrain,]
+inBuild <- createDataPartition(y = training$classe, p = 0.7, list = FALSE)
+
+validation <- training[-inBuild,]
+buildData <- training[inBuild,]
+
+inTrain <- createDataPartition(y = buildData$classe, p = 0.7, list = FALSE)
+
+trainSet <- buildData[inTrain,]
+testSet <- buildData[-inTrain,]
 ```
 
 
 ###1. Random Forest Model
+This model provides a very good accuracy for the testSet, but it takes an incredible amount of time. Unfortunately due to overfitting, the out of sample error could be quite high, such that we could expect a drop in accuracy at around 80% or lower.
 ```{r randomForest, cache=TRUE, warning=FALSE}
-setting <- trainControl(allowParallel=T, method="cv", number=4)#to work faster, but still very slow :-(
+setting <- trainControl(allowParallel=T, method="cv", number=4) #to work faster, but still very slow :-(
 
 modRF <- train(classe ~ ., data = trainSet, method = "rf", trainControl=setting)
 
 predictionsRF <- predict(modRF, newdata = testSet)
 
-confusionMatrix(predictions, testSet$classe) #Accuracy 0.9905 [0.9877, 0.9928]
-table(predictions, testSet$classe)
+confusionMatrix(predictionsRF, testSet$classe)
+
 varImp(modRF)
 ```
-This model provides a very good accuracy value, which can almost be used alone.
 
 
 ###2. Linear Discriminant Model
+This model provides much lower accuracy compared to the random forest model and could only be helpful in combination with our first model. The expected out of sample error with a new sample could be around 40% and if unlucky above 50%. 
 ```{r linearDiscriminant, cache=TRUE, warning=FALSE}
 library(MASS)
 modLDA <- train(classe ~ ., data = trainSet, method = "lda")
 
 predictionsLDA <- predict(modLDA, newdata = testSet)
 
-confusionMatrix(predictions, testSet$classe) #Accuracy 0.6545 [0.6422, 0.6667]
-table(predictions, testSet$classe)
+confusionMatrix(predictionsLDA, testSet$classe) #Accuracy 0.6545 [0.6422, 0.6667]
 ```
-The accuracy for this model is much lower compared to the random forest model, such that it could only be helpful in combination with the first model.
 
 
 ###3. Boosting Model
-```{r boosting, cache = TRUE, warning = FALSE}
+This models provides very good results and a very high accuracy. By combining it with our first model, we could improve the accuracy for new samples, as the expected accuracy on new samples will be lower, thus giving a higher out of sample error.
+```{r boosting, cache = TRUE, message=FALSE, warning = FALSE}
 library(plyr)
 library(survival)
 library(splines)
 library(parallel)
+library(ggplot2)
+library(gbm)
+
+#takes a lot of time
 modB <- train(classe ~ ., data = trainSet, method = "gbm", verbose = FALSE)
 
 predictionsB <- predict(modB, newdata = testSet)
 
-confusionMatrix(predictions, testSet$classe)
-table(predictions, testSet$classe)
+confusionMatrix(predictionsB, testSet$classe)
 ```
-With an accuracy of 0.9568 and a 95% confidence interval of (0.9513, 0.9619) it is pretty good, but not as good as random forest. 
 
 
-##Validation
+###4. Predictive Tree Model
+This model has the worst performance so far with an accuracy of around 50%. The out of sample error will be higher, but we can't estimate by how much.
+```{r trees, cache = TRUE, message=FALSE, warning=FALSE}
+library(rattle)
+modT <- train(classe ~ ., data = trainSet, method = "rpart")
+
+predictionsT <- predict(modT, testSet)
+
+confusionMatrix(predictionsT, testSet$classe)
+
+fancyRpartPlot(modT$finalModel)
+```
+ 
+###5. Combination Of Predictors
+Our final model will consist on a combination of a boosting and random forest model. The accuracy will be validated with the validation set.
+```{r finalModel, cache = TRUE, message = FALSE, warning = FALSE}
+
+
+length(predictionsRF)
+class(predictionsRF)
+length(predictionsB)
+class(predictionsB)
+length(testSet$classe)
+class(testSet$classe)
+#predDF <- data.frame(classe = testSet$classe ,predictionsRF, predictionsB)
+
+#modC <- train(classe ~ . , method = 'gam', data = predDF)
+
+#predictionsC_RF <- predict(modRF, validation)
+#predictionsC_B <- predict(modB, validation)
+#predCDF <- data.frame(p1 = predictionsC_RF, p2 = predictionsC_B)
+
+#predictionsC <- predict(modC, predCDF)
+
+#confusionMatrix(predictionsC, validation$classe)
+
+#sqrt(sum((predictionsC_RF - validation$classe)^2))
+#sqrt(sum((predictionsC_B - validation$classe)^2))
+#sqrt(sum((predictionsC - validation$classe)^2))
+```
+
+##Course Project Prediction Quiz
 
 ```{r validation, cache = TRUE, warning=FALSE}
-predictionsV <- predict(modRF, validation)#doesn't work appropriately
+#predictionsV <- predict(modRF, validation)#needs to be adapted
 ```
 
 
