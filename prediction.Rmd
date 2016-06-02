@@ -154,6 +154,7 @@ confusionMatrix(predictions, validation$classe)
 ```{r validation, cache = TRUE, warning=FALSE}
 predictionsQuiz <- predict(modRF, quizSet)
 quizDF <- data.frame(predictions = predictionsQuiz, quizSet) 
+#quizDF[,1:2] passed 20/20
 ```
 
 

@@ -143,7 +143,7 @@ download.file(urlTrainingData, destfile = &quot;training.csv&quot;)
 download.file(urlTestingData, destfile = &quot;testing.csv&quot;)
 training &lt;- read.csv(&quot;training.csv&quot;,strip.white = TRUE, na.strings = c(&quot;#DIV/0!&quot;, &quot;NA&quot;))
 dim(training) #[1] 19622 160
-quizSet &lt;- read.csv(&quot;testing.csv&quot;, strip.white=TRUE, na.strings = c(&quot;#DIV/0!&quot;, &quot;NA&quot;)) #Course Project Prediction Quiz</code></pre>
+quizSet &lt;- read.csv(&quot;testing.csv&quot;, strip.white=TRUE, na.strings = c(&quot;#DIV/0!&quot;, &quot;NA&quot;)) #Prediction Quiz</code></pre>
 </div>
 <div id="cleaning-the-data" class="section level2">
 <h2>Cleaning The Data</h2>
@@ -428,7 +428,8 @@ confusionMatrix(predictions, validation$classe)</code></pre>
 <div id="course-project-prediction-quiz" class="section level2">
 <h2>Course Project Prediction Quiz</h2>
 <pre class="r"><code>predictionsQuiz &lt;- predict(modRF, quizSet)
-quizDF &lt;- data.frame(predictions = predictionsQuiz, quizSet) </code></pre>
+quizDF &lt;- data.frame(predictions = predictionsQuiz, quizSet) 
+#quizDF[,1:2] passed 20/20</code></pre>
 <ol style="list-style-type: decimal">
 <li>Velloso, E.; Bulling, A.; Gellersen, H.; Ugulino, W.; Fuks, H. Qualitative Activity Recognition of Weight Lifting Exercises. Proceedings of 4th International Conference in Cooperation with SIGCHI (Augmented Human ’13) . Stuttgart, Germany: ACM SIGCHI, 2013. Read more: <a href="http://groupware.les.inf.puc-rio.br/har#ixzz4AKmYoNy4" class="uri">http://groupware.les.inf.puc-rio.br/har#ixzz4AKmYoNy4</a></li>
 </ol>

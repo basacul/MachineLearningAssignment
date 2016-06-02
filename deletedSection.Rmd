@@ -21,7 +21,7 @@ predCDF <- data.frame(rf = predictionsC_RF, b = predictionsC_B)
 
 dim(predCDF)
 
-predictionsC <- predict(modC, predCDF) #something's wrong here!
+predictionsC <- predict(modC, predCDF) #the number of predictions is smaller than expected!
 
 
 length(predictionsC) ## [1] 4118
