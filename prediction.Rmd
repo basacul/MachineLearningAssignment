@@ -1,6 +1,6 @@
 ---
 title: "Qualitative Activity Prediction Model"
-author: "Lucas Antelo"
+author: "basacul"
 date: "31 Mai 2016"
 output: html_document
 ---
